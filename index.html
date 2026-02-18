@@ -527,6 +527,7 @@
         display: flex;
         gap: 12px;
         justify-content: center;
+        margin-bottom: 16px;
       }
       .popup .btn {
         cursor: none;
@@ -549,9 +550,11 @@
       }
       .wishes-list {
         margin-top: 20px;
-        max-height: 200px;
+        max-height: 250px;
         overflow-y: auto;
         text-align: left;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 16px;
       }
       .wish-item {
         background: rgba(255, 255, 255, 0.05);
@@ -561,12 +564,53 @@
         font-size: 0.9em;
         color: rgba(255, 255, 255, 0.8);
         border-left: 3px solid var(--rose);
+        position: relative;
       }
       .wish-item strong {
         color: var(--gold);
         display: block;
         font-size: 0.85em;
         margin-bottom: 2px;
+      }
+      .wish-delete {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(255, 79, 123, 0.2);
+        border: none;
+        color: var(--rose);
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        font-size: 0.7em;
+        cursor: none;
+        opacity: 0.6;
+        transition: all 0.2s;
+      }
+      .wish-delete:hover {
+        opacity: 1;
+        background: rgba(255, 79, 123, 0.4);
+        transform: scale(1.1);
+      }
+      .clear-all-btn {
+        background: rgba(255, 79, 123, 0.15);
+        border: 1px solid rgba(255, 79, 123, 0.3);
+        color: var(--rose);
+        font-size: 0.8em;
+        padding: 8px 16px;
+        border-radius: 100px;
+        cursor: none;
+        margin-top: 12px;
+        transition: all 0.3s;
+      }
+      .clear-all-btn:hover {
+        background: rgba(255, 79, 123, 0.25);
+        transform: scale(1.05);
+      }
+      .wish-count {
+        font-size: 0.75em;
+        color: rgba(255, 255, 255, 0.4);
+        margin-top: 8px;
       }
 
       /* ── MUSIC PLAYER ── */
@@ -766,7 +810,7 @@
       <div class="popup">
         <button class="close-btn" onclick="closeWish()">✕</button>
         <h2>💌 Gửi Lời Chúc</h2>
-        <p>Viết lời chúc năm mới của bạn!</p>
+        <p>Viết lời chúc năm mới - sẽ được lưu vĩnh viễn!</p>
         <input id="wishName" placeholder="Tên của bạn..." maxlength="30" />
         <textarea id="wishText" placeholder="Lời chúc năm mới..."></textarea>
         <div class="popup-btns">
@@ -778,10 +822,19 @@
             onclick="closeWish()"
             style="background: rgba(255, 255, 255, 0.1); box-shadow: none"
           >
-            <span>Hủy</span>
+            <span>Đóng</span>
           </button>
         </div>
         <div class="wishes-list" id="wishesList"></div>
+        <div class="wish-count" id="wishCount"></div>
+        <button
+          class="clear-all-btn"
+          onclick="clearAllWishes()"
+          style="display: none"
+          id="clearBtn"
+        >
+          🗑️ Xóa tất cả lời chúc
+        </button>
       </div>
     </div>
 
@@ -1242,42 +1295,100 @@
       }
 
       // ═══════════════════════════════════════
-      //  WISHES
+      //  WISHES (with localStorage persistence!)
       // ═══════════════════════════════════════
       let wishes = [];
+
+      // Load wishes from localStorage
+      function loadWishes() {
+        try {
+          const saved = localStorage.getItem("newYearWishes2026");
+          if (saved) {
+            wishes = JSON.parse(saved);
+            console.log("✅ Đã tải", wishes.length, "lời chúc từ bộ nhớ");
+          }
+        } catch (e) {
+          console.error("❌ Lỗi khi tải lời chúc:", e);
+        }
+      }
+
+      // Save wishes to localStorage
+      function saveWishes() {
+        try {
+          localStorage.setItem("newYearWishes2026", JSON.stringify(wishes));
+          console.log("💾 Đã lưu", wishes.length, "lời chúc");
+        } catch (e) {
+          console.error("❌ Lỗi khi lưu lời chúc:", e);
+        }
+      }
 
       function openWish() {
         document.getElementById("wishOverlay").classList.add("show");
         renderWishes();
       }
+
       function closeWish() {
         document.getElementById("wishOverlay").classList.remove("show");
       }
+
       function submitWish() {
         const name =
           document.getElementById("wishName").value.trim() || "Ẩn danh";
         const text = document.getElementById("wishText").value.trim();
-        if (!text) return;
+        if (!text) {
+          alert("Vui lòng nhập lời chúc!");
+          return;
+        }
         wishes.unshift({
           name,
           text,
-          time: new Date().toLocaleTimeString("vi-VN"),
+          time: new Date().toLocaleString("vi-VN"),
+          id: Date.now(),
         });
+        saveWishes(); // 💾 Lưu vào localStorage
         document.getElementById("wishName").value = "";
         document.getElementById("wishText").value = "";
         renderWishes();
         heartRain();
       }
+
+      function deleteWish(id) {
+        if (confirm("Xóa lời chúc này?")) {
+          wishes = wishes.filter((w) => w.id !== id);
+          saveWishes();
+          renderWishes();
+        }
+      }
+
+      function clearAllWishes() {
+        if (confirm("Xóa TẤT CẢ lời chúc? Hành động này không thể hoàn tác!")) {
+          wishes = [];
+          saveWishes();
+          renderWishes();
+        }
+      }
+
       function renderWishes() {
         const list = document.getElementById("wishesList");
+        const count = document.getElementById("wishCount");
+        const clearBtn = document.getElementById("clearBtn");
+
         if (wishes.length === 0) {
-          list.innerHTML = "";
+          list.innerHTML =
+            '<p style="color:rgba(255,255,255,0.4);font-size:0.85em;text-align:center;padding:20px 0;">✨ Chưa có lời chúc nào. Hãy là người đầu tiên!</p>';
+          count.textContent = "";
+          clearBtn.style.display = "none";
           return;
         }
+
+        count.textContent = `📝 Tổng cộng ${wishes.length} lời chúc`;
+        clearBtn.style.display = "block";
+
         list.innerHTML = wishes
           .map(
             (w) => `
     <div class="wish-item">
+      <button class="wish-delete" onclick="deleteWish(${w.id})">✕</button>
       <strong>💌 ${w.name} · ${w.time}</strong>
       ${w.text}
     </div>
@@ -1285,6 +1396,9 @@
           )
           .join("");
       }
+
+      // Load wishes when page loads
+      loadWishes();
 
       // ═══════════════════════════════════════
       //  COUNTDOWN
